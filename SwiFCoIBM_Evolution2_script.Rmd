@@ -1,0 +1,2287 @@
+---
+title: "SwiFCoIBM_Evolution2"
+author: "Tobias Kuerschner"
+date: "04/05/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Source files and folder creation, echo=FALSE, include=FALSE}
+# source file with required packages
+source("source_lib.r")
+
+# source file with functions
+source("source_fun.r")
+
+# date
+currentDate_v <- gsub("-", "", Sys.Date())
+
+# output folder
+todaysFolder <- paste("Output/Output", currentDate_v, sep = "_")
+dir.create(todaysFolder)
+```
+
+```{r loading raw data, echo=FALSE, include=FALSE}
+# raw data
+ls_raw <-
+    read.csv(
+        "input/*******.csv", # path to raw data (ibm generated)
+        header = TRUE,
+        sep = ",",
+        skip = 6
+    )
+```
+
+```{r renaming raw data, echo=FALSE, include=FALSE}
+# Rename variables
+ls_raw <- ls_raw %>% rename(
+    Npop = count.turtles,
+    runNumber = X.run.number.,
+    t = X.step.,
+    meanStrain = meanStrainOutput,
+    Nsusceptible = count.turtles.with..EpiStat....esSusc..,
+    Ninfected = count.turtles.with..EpiStat....esLeth..,
+    Nimmune = count.turtles.with..EpiStat....esImm..,
+    strain_7 = count.turtles.with..hasActiveStrain...true.AND.strain....0.AND.strain...2.AND.strain....999.,
+    strain_8 = count.turtles.with..hasActiveStrain...true.AND.strain....2.AND.strain...4.AND.strain....999.,
+    strain_9 = count.turtles.with..hasActiveStrain...true.AND.strain....4.AND.strain...6.AND.strain....999.,
+    strain_10 = count.turtles.with..hasActiveStrain...true.AND.strain....6.AND.strain...8.AND.strain....999.,
+    strain_11 = count.turtles.with..hasActiveStrain...true.AND.strain....8.AND.strain...10.AND.strain....999.,
+    strain_12 = count.turtles.with..hasActiveStrain...true.AND.strain....10.AND.strain....999.,
+    strain_6 = count.turtles.with..hasActiveStrain...true.AND.strain....0.AND.strain....2.AND.strain.....none..,
+    strain_5 = count.turtles.with..hasActiveStrain...true.AND.strain.....2.AND.strain....4.AND.strain.....none..,
+    strain_4 = count.turtles.with..hasActiveStrain...true.AND.strain.....4.AND..strain....6.AND.strain.....none..,
+    strain_3 = count.turtles.with..hasActiveStrain...true.AND.strain.....6.AND.strain....8.AND.strain.....none..,
+    strain_2 = count.turtles.with..hasActiveStrain...true.AND.strain.....8.AND.strain....10.AND..strain.....none..,
+    strain_1 = count.turtles.with..hasActiveStrain...true.AND.strain.....10.AND..strain.....none..
+)
+```
+
+```{r summaries, echo=FALSE, include=FALSE}
+# summary with mean and sd
+ls_sum1 <-
+    ls_raw %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding, mutationRate, evolutionFactor,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c(
+            "Nsusceptible",
+            "Ninfected",
+            "Npop",
+            "Nimmune",
+            "meanStrain",
+            "strain_1",
+            "strain_2",
+            "strain_3",
+            "strain_4",
+            "strain_5",
+            "strain_6",
+            "strain_7",
+            "strain_8",
+            "strain_9",
+            "strain_10",
+            "strain_11",
+            "strain_12"
+        ),
+        .funs = c(mean = "mean", sd = "sd")
+    )
+
+# summary with mean and without sd
+ls_sum1_noSD <-
+    ls_raw %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding, mutationRate, evolutionFactor,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c(
+            "Nsusceptible",
+            "Ninfected",
+            "Npop",
+            "Nimmune",
+            "meanStrain",
+            "strain_1",
+            "strain_2",
+            "strain_3",
+            "strain_4",
+            "strain_5",
+            "strain_6",
+            "strain_7",
+            "strain_8",
+            "strain_9",
+            "strain_10",
+            "strain_11",
+            "strain_12"
+        ),
+        .funs = c(mean = "mean")
+    )
+```
+
+```{r variable clear names, echo=FALSE, include=FALSE}
+# clear names
+var_names <- c(
+    "0" = "No mismatch",
+    "100" = "Full mismatch",
+    "patch_m_1" = "Medium clusters",
+    "rand_1" = "Random landscape",
+    "patch_m_3" = "Medium clusters conf. 2",
+    "patch_l_3" = "Large clusters conf. 2",
+    "patch_s_3" = "Small clusters conf. 2",
+    "patch_l_1" = "Large clusters",
+    "patch_l_2" = "Large clusters conf. 2",
+    "patch_s_1" = "Small clusters",
+    "rand_3" = "Random landscape conf. 2",
+    "hom_1" = "Homogeneous",
+    "strain_1_mean" = "alpha1_variant",
+    "strain_2_mean" = "alpha2_variant",
+    "strain_3_mean" = "beta1_variant",
+    "strain_4_mean" = "beta2_variant",
+    "strain_5_mean" = "gamma1_variant",
+    "strain_6_mean" = "gamma2_variant",
+    "strain_7_mean" = "delta1_variant",
+    "strain_8_mean" = "delta2_variant",
+    "strain_9_mean" = "epsilon1_variant",
+    "strain_10_mean" = "epsilon2_variant",
+    "strain_11_mean" = "zeta1_variant",
+    "strain_12_mean" = "zeta2_variant",
+    "strain_1" = "alpha1_variant",
+    "strain_2" = "alpha2_variant",
+    "strain_3" = "beta1_variant",
+    "strain_4" = "beta2_variant",
+    "strain_5" = "gamma1_variant",
+    "strain_6" = "gamma2_variant",
+    "strain_7" = "delta1_variant",
+    "strain_8" = "delta2_variant",
+    "strain_9" = "epsilon1_variant",
+    "strain_10" = "epsilon2_variant",
+    "strain_11" = "zeta1_variant",
+    "strain_12" = "zeta2_variant",
+    "value" = "Number of infected"
+)
+```
+
+```{r decomposed strain trends without mismatch}
+# data subset
+seasonal_Lag <-
+    ls_raw %>% filter(
+        ls_raw$uniform_breeding == "false",
+        ls_raw$dynmode == "true",
+        ls_raw$temporal_lag == 0,
+        ls_raw$mutationRate == 0.01,
+        ls_raw$evolutionFactor == 1
+    )
+
+seasonal_Lag$seed.setup <- NULL
+seasonal_Lag$seed <- NULL
+seasonal_Lag$FertRedInf <- NULL
+seasonal_Lag$Landscape <- NULL
+seasonal_Lag$BetaWithin <- NULL
+seasonal_Lag$Npop <- NULL
+seasonal_Lag$WeekLast <- NULL
+
+# aggregate strains
+seasonal_Lag$LowVirStrains <- seasonal_Lag$strain_1 + seasonal_Lag$strain_2 + seasonal_Lag$strain_3 + seasonal_Lag$strain_4 + seasonal_Lag$strain_5
+seasonal_Lag$MedVirStrains <- seasonal_Lag$strain_6 + seasonal_Lag$strain_7
+seasonal_Lag$HighVirStrains <- seasonal_Lag$strain_8 + seasonal_Lag$strain_9 + seasonal_Lag$strain_10 + seasonal_Lag$strain_11 + seasonal_Lag$strain_12
+
+# grouping
+seasonal_LagGrouped <- seasonal_Lag %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c(
+            "LowVirStrains",
+            "MedVirStrains",
+            "HighVirStrains"
+        ),
+        .funs = c(mean = "mean")
+    )
+
+# Landscapes vector
+landscapes_seasonal_LagGrouped <- unique(seasonal_LagGrouped$Filename)
+
+# clear names
+TVc <-
+    c(
+        "Homogeneous landscape",
+        "Large clusters",
+        "Medium clusters",
+        "Small clusters",
+        "Random landscape"
+    )
+landscapes_seasonal_LagGrouped <- cbind.data.frame(landscapes_seasonal_LagGrouped, TVc)
+
+# loop over all landscapes
+for (i in 1:length(unique(landscapes_seasonal_LagGrouped$landscapes_seasonal_LagGrouped))) {
+    # Current landscape
+    this.landscapes <- unique(landscapes_seasonal_LagGrouped$landscapes_seasonal_LagGrouped)[i]
+
+    # Filter for current landscape
+    tmp1 <- seasonal_LagGrouped %>% dplyr::filter(Filename == this.landscapes)
+    tmp1Short <- tmp1 %>% dplyr::filter(t >= 0, t < 5100) # Start after initial outbreak
+    tmp1Short$t <- (tmp1Short$t - min(tmp1Short$t))
+
+    # creating time series
+    tmp1_lowTS <- stats::ts(tmp1Short$LowVirStrains_mean, tmp1Short$t, frequency = 52)
+    tmp1_medTS <- stats::ts(tmp1Short$MedVirStrains_mean, tmp1Short$t, frequency = 52)
+    tmp1_highTS <- stats::ts(tmp1Short$HighVirStrains_mean, tmp1Short$t, frequency = 52)
+
+    # decomposing time series
+    tmp1_declowTS <- stats::decompose(tmp1_lowTS)
+    tmp1_decmedTS <- stats::decompose(tmp1_medTS)
+    tmp1_decHTS <- stats::decompose(tmp1_highTS)
+
+    # Removing seasonal and random effects
+    tmp1_trend_low <- tmp1_lowTS - tmp1_declowTS$seasonal
+    tmp1_trend_low <- tmp1_trend_low - tmp1_declowTS$random
+    tmp1_trend_med <- tmp1_medTS - tmp1_decmedTS$seasonal
+    tmp1_trend_med <- tmp1_trend_med - tmp1_decmedTS$random
+    tmp1_trend_hig <- tmp1_highTS - tmp1_decHTS$seasonal
+    tmp1_trend_hig <- tmp1_trend_hig - tmp1_decHTS$random
+
+    # Rebuild data frame
+    tmp1_tsDF_low <- ts_reshape(tmp1_trend_low, type = "long")
+    tmp1_tsDF_med <- ts_reshape(tmp1_trend_med, type = "long")
+    tmp1_tsDF_high <- ts_reshape(tmp1_trend_hig, type = "long")
+    tmp1_tsDF_high$v_h <- tmp1_tsDF_high$value
+    tmp1_tsDF_high$v_m <- tmp1_tsDF_med$value
+    tmp1_tsDF_high$v_l <- tmp1_tsDF_low$value
+    tmp1_tsDF_high$value <- NULL
+    tmp1_tsDF_high$t <- rownames(tmp1_tsDF_high)
+    tmp1_tsDF_high$year <- NULL
+    tmp1_tsDF_high$week <- NULL
+
+    # Name adjustments
+    tmp1_tsDF_high <-
+        tmp1_tsDF_high %>% rename(
+            "High virulence\nstrains" = v_h,
+            "Low virulence\nstrains" = v_l,
+            "Medium virulence\nstrains" = v_m
+        )
+
+    # Melt for plot object
+    tmp1_trend_melt <- melt(tmp1_tsDF_high, c("t"))
+    tmp1_trend_melt$Strain <- tmp1_trend_melt$variable
+
+    # Plot title
+    title <- vector()
+    title <- landscapes_seasonal_LagGrouped$TVc[i]
+
+    # Plot object
+    tmp1_strainTrend <- ggplot() +
+        geom_line(
+            data = tmp1_trend_melt,
+            aes((as.numeric((
+                t
+            ))) / 52 + 2, as.numeric(value), colour = Strain),
+            size = 1.2
+        ) +
+        theme_bw() +
+        labs(y = "N infected trend", x = "Time (years)") +
+        theme(
+            axis.text.y = element_text(size = 26),
+            axis.text.x = element_text(size = 18),
+            axis.title = element_text(size = 28),
+            # axis.title = element_blank(),
+            legend.text = element_text(size = 26),
+            legend.title = element_text(size = 28),
+            plot.title = element_text(size = 20)
+        ) +
+        scale_color_scico_d(palette = "berlin", direction = -1) +
+        ggtitle(label = paste(title, "")) +
+        scale_y_continuous(limits = c(0, 3500)) +
+        scale_x_continuous(
+            limits = c(0, 100),
+            breaks = c(0, 25, 50, 75, 100)
+        )
+
+    # Creating a name for the plot object
+    nam <- paste("strainTrend_noLag", this.landscapes, sep = "_")
+
+    # Create unique object
+    assign(nam, tmp1_strainTrend)
+
+    if (this.landscapes == "hom_1") {
+        trans_hom <- tmp1_trend_melt
+    }
+}
+
+combined_trends_noLag <-
+    ggpubr::ggarrange(
+        # strainTrend_noLag_hom_1,
+        strainTrend_noLag_patch_l_2,
+        strainTrend_noLag_patch_m_1,
+        strainTrend_noLag_patch_s_1,
+        strainTrend_noLag_rand_1,
+        common.legend = TRUE,
+        legend = "none", ncol = 1
+    )
+
+
+# combined_trends_noLag
+combined_trends_noLag_name <-
+    paste(todaysFolder,
+        "/strainTrend_NoLag_combined",
+        currentDate_v,
+        ".png",
+        sep = ""
+    )
+
+
+ggsave(
+    combined_trends_noLag_name,
+    plot = combined_trends_noLag,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 10,
+    height = 12
+)
+```
+
+```{r decomposed strain trends with full mismatch}
+# data subset
+seasonal_Lag <-
+    ls_raw %>% filter(
+        ls_raw$uniform_breeding == "false",
+        ls_raw$dynmode == "true",
+        ls_raw$temporal_lag == 100,
+        ls_raw$mutationRate == 0.01,
+        ls_raw$evolutionFactor == 1 # ,
+    )
+
+seasonal_Lag$seed.setup <- NULL
+seasonal_Lag$seed <- NULL
+seasonal_Lag$FertRedInf <- NULL
+seasonal_Lag$Landscape <- NULL
+seasonal_Lag$BetaWithin <- NULL
+seasonal_Lag$Npop <- NULL
+seasonal_Lag$WeekLast <- NULL
+
+# aggregate strains
+
+seasonal_Lag$LowVirStrains <- seasonal_Lag$strain_1 + seasonal_Lag$strain_2 + seasonal_Lag$strain_3 + seasonal_Lag$strain_4 + seasonal_Lag$strain_5
+seasonal_Lag$MedVirStrains <- seasonal_Lag$strain_6 + seasonal_Lag$strain_7
+seasonal_Lag$HighVirStrains <- seasonal_Lag$strain_8 + seasonal_Lag$strain_9 + seasonal_Lag$strain_10 + seasonal_Lag$strain_11 + seasonal_Lag$strain_12
+
+# grouping
+seasonal_LagGrouped <- seasonal_Lag %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c(
+            "LowVirStrains",
+            "MedVirStrains",
+            "HighVirStrains"
+        ),
+        .funs = c(mean = "mean")
+    )
+
+# Landscapes vector
+landscapes_seasonal_LagGrouped <- unique(seasonal_LagGrouped$Filename)
+
+# clear names
+TVc <- c("Homogeneous landscape", "Large clusters", "Medium clusters", "Small clusters", "Random landscape")
+landscapes_seasonal_LagGrouped <- cbind.data.frame(landscapes_seasonal_LagGrouped, TVc)
+
+landscapes_seasonal_LagGrouped$landscapes_seasonal_LagGrouped <-
+    landscapes_seasonal_LagGrouped$landscapes_seasonal_LagGrouped <-
+    fct_relevel(
+        as.factor(
+            landscapes_seasonal_LagGrouped$landscapes_seasonal_LagGrouped
+        ),
+        "rand_1",
+        "patch_s_1",
+        "patch_m_1",
+        "patch_l_2",
+        "hom_1"
+    )
+
+# loop over all landscapes
+for (i in 1:length(unique(landscapes_seasonal_LagGrouped$landscapes_seasonal_LagGrouped))) {
+    # Current landscape
+    this.landscapes <- unique(landscapes_seasonal_LagGrouped$landscapes_seasonal_LagGrouped)[i]
+
+    if (this.landscapes != "hom_1") {
+        # Filter for current landscape
+        tmp1 <- seasonal_LagGrouped %>% dplyr::filter(Filename == this.landscapes)
+        tmp1Short <- tmp1 %>% dplyr::filter(t >= 0, t < 5100) # Start after initial outbreak
+        tmp1Short$t <- (tmp1Short$t - min(tmp1Short$t))
+
+        # creating time series
+        tmp1_lowTS <- stats::ts(tmp1Short$LowVirStrains_mean, tmp1Short$t, frequency = 52)
+        tmp1_medTS <- stats::ts(tmp1Short$MedVirStrains_mean, tmp1Short$t, frequency = 52)
+        tmp1_highTS <- stats::ts(tmp1Short$HighVirStrains_mean, tmp1Short$t, frequency = 52)
+
+        # decomposing time series
+        tmp1_declowTS <- stats::decompose(tmp1_lowTS)
+        tmp1_decmedTS <- stats::decompose(tmp1_medTS)
+        tmp1_decHTS <- stats::decompose(tmp1_highTS)
+
+        # Removing seasonal and random effects
+        tmp1_trend_low <- tmp1_lowTS - tmp1_declowTS$seasonal
+        tmp1_trend_low <- tmp1_trend_low - tmp1_declowTS$random
+        tmp1_trend_med <- tmp1_medTS - tmp1_decmedTS$seasonal
+        tmp1_trend_med <- tmp1_trend_med - tmp1_decmedTS$random
+        tmp1_trend_hig <- tmp1_highTS - tmp1_decHTS$seasonal
+        tmp1_trend_hig <- tmp1_trend_hig - tmp1_decHTS$random
+
+        # Rebuild data frame
+        tmp1_tsDF_low <- ts_reshape(tmp1_trend_low, type = "long")
+        tmp1_tsDF_med <- ts_reshape(tmp1_trend_med, type = "long")
+        tmp1_tsDF_high <- ts_reshape(tmp1_trend_hig, type = "long")
+        tmp1_tsDF_high$v_h <- tmp1_tsDF_high$value
+        tmp1_tsDF_high$v_m <- tmp1_tsDF_med$value
+        tmp1_tsDF_high$v_l <- tmp1_tsDF_low$value
+        tmp1_tsDF_high$value <- NULL
+        tmp1_tsDF_high$t <- rownames(tmp1_tsDF_high)
+        tmp1_tsDF_high$year <- NULL
+        tmp1_tsDF_high$week <- NULL
+        # Name adjustments
+        tmp1_tsDF_high <-
+            tmp1_tsDF_high %>% rename(
+                "High virulence\nstrains" = v_h,
+                "Low virulence\nstrains" = v_l,
+                "Medium virulence\nstrains" = v_m
+            )
+
+        # Melt for plot object
+        tmp1_trend_melt <- melt(tmp1_tsDF_high, c("t"))
+        tmp1_trend_melt$Strain <- tmp1_trend_melt$variable
+
+        # Plot title
+        title <- vector()
+        title <- landscapes_seasonal_LagGrouped$TVc[i]
+
+        # Plot object
+        tmp1_strainTrend <- ggplot() +
+            geom_line(
+                data = tmp1_trend_melt,
+                aes((as.numeric((
+                    t
+                ))) / 52 + 2, as.numeric(value), colour = Strain),
+                size = 1.2
+            ) +
+            theme_bw() +
+            labs(y = "N infected trend", x = "Time (years)") +
+            theme(
+                axis.text.y = element_text(size = 26),
+                axis.text.x = element_text(size = 18),
+                axis.title = element_text(size = 28),
+                # axis.title = element_blank(),
+                legend.text = element_text(size = 26),
+                legend.title = element_text(size = 28),
+                plot.title = element_text(size = 20)
+            ) +
+            scale_color_scico_d(palette = "berlin", direction = -1) +
+            ggtitle(label = paste(title, "")) +
+            scale_y_continuous(limits = c(0, 3500)) +
+            scale_x_continuous(
+                limits = c(0, 100),
+                breaks = c(0, 25, 50, 75, 100)
+            )
+
+        # Creating a name for the plot object
+        nam <- paste("strainTrend_FullLag", this.landscapes, sep = "_")
+
+        # Create unique object
+        assign(nam, tmp1_strainTrend)
+    }
+
+    if (this.landscapes == "hom_1") {
+        title <- landscapes_seasonal_LagGrouped$TVc[i]
+        trans_hom$value <- -1
+
+        tmp1_strainTrend <- ggplot() +
+            geom_line(
+                data = trans_hom,
+                aes((as.numeric((
+                    t
+                ))) / 52 + 2, as.numeric(value), colour = Strain),
+                size = 1.2
+            ) +
+            theme_bw() +
+            labs(y = "N infected trend", x = "Time (years)") +
+            theme(
+                axis.text.y = element_text(size = 26),
+                axis.text.x = element_text(size = 18),
+                axis.title = element_text(size = 28),
+                # axis.title = element_blank(),
+                legend.text = element_text(size = 26),
+                legend.title = element_text(size = 28),
+                plot.title = element_text(size = 20)
+            ) +
+            scale_color_scico_d(palette = "berlin", direction = -1) +
+            ggtitle(label = paste(title, "")) +
+            scale_y_continuous(limits = c(0, 3500)) +
+            scale_x_continuous(
+                limits = c(0, 100),
+                breaks = c(0, 25, 50, 75, 100)
+            )
+
+
+        nam <- paste("strainTrend_FullLag", this.landscapes, sep = "_")
+
+        # Create unique object
+        assign(nam, tmp1_strainTrend)
+    }
+    # asynchony
+}
+
+combined_trends_FullLag <-
+    ggpubr::ggarrange(
+        # strainTrend_FullLag_hom_1,
+        strainTrend_FullLag_patch_l_2,
+        strainTrend_FullLag_patch_m_1,
+        strainTrend_FullLag_patch_s_1,
+        strainTrend_FullLag_rand_1,
+        common.legend = TRUE,
+        legend = "none",
+        ncol = 1
+    )
+
+
+# combined_trends_FullLag
+
+combined_trends_FullLag_name <-
+    paste(todaysFolder,
+        "/strainTrend_FullLag_combined",
+        currentDate_v,
+        ".png",
+        sep = ""
+    )
+
+ggsave(
+    combined_trends_FullLag_name,
+    plot = combined_trends_FullLag,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 10,
+    height = 12
+)
+```
+
+```{r combination of trends}
+legend_1 <- get_legend(strainTrend_FullLag_patch_l_2)
+
+legends <- ggarrange(legend_1, nrow = 1)
+
+combined_trends <-
+    ggpubr::ggarrange(
+        combined_trends_noLag,
+        combined_trends_FullLag,
+        common.legend = TRUE,
+        legend = "none",
+        ncol = 2
+    )
+
+
+combined_trends_L <- ggpubr::ggarrange(combined_trends, legends, widths = c(0.75, 0.2))
+
+combined_trends_full <- annotate_figure(combined_trends,
+    bottom = text_grob("Time (years)",
+        color = "black",
+        face = "bold", size = 18
+    ),
+    left = text_grob("N infected trend", color = "black", size = 18, rot = 90, face = "bold")
+)
+
+combined_trends_L <- ggpubr::ggarrange(combined_trends_full, legends, widths = c(0.75, 0.2))
+
+combined_trends_name <-
+    paste(todaysFolder,
+        "/strainTrend_combined",
+        currentDate_v,
+        ".png",
+        sep = ""
+    )
+
+ggsave(
+    combined_trends_name,
+    plot = combined_trends_L,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 20,
+    height = 12
+)
+```
+
+```{r strain trends mean virulence}
+# data subset
+mVnoLag_raw <-
+    ls_raw %>% filter(
+        ls_raw$uniform_breeding == "false",
+        ls_raw$dynmode == "true",
+        ls_raw$mutationRate == 0.01,
+        ls_raw$evolutionFactor == 1
+    )
+
+# grouping and summary
+mVnoLag <- mVnoLag_raw %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding,
+        mutationRate,
+        evolutionFactor,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c("meanStrain", "Ninfected"),
+        .funs = c(mean = "mean", sd = "sd")
+    )
+
+mVnoLag_g <-
+    mVnoLag %>%
+    ungroup() %>%
+    group_by(
+        Filename,
+        uniform_breeding,
+        mutationRate,
+        evolutionFactor,
+        temporal_lag
+    )
+
+mVnoLag_g$meanViru <- 0
+
+mVnoLag_split <- group_split(mVnoLag_g)
+
+# Decompose loop
+for (i in 1:length(mVnoLag_split)) {
+    tmpShort <- mVnoLag_split[[i]]
+
+    if (tmpShort$Filename[1] != "hom_1" ||
+        tmpShort$temporal_lag[1] != 100) {
+        tmpTS <-
+            stats::ts(tmpShort$meanStrain_mean, tmpShort$t, frequency = 52)
+        tmpTS_d <- stats::decompose(tmpTS)
+        tmpTS_d_adj <- tmpTS_d$x - tmpTS_d$seasonal - tmpTS_d$random
+        tmpTS_d_adj_rs <- ts_reshape(tmpTS_d_adj, type = "long") # time series to df
+        tmpTS_rs <- tmpTS_d_adj_rs
+        tmpTS_rs$t <- seq(1:length(tmpTS_rs$value)) # create new ts
+        tmpTS_rs$year <- NULL # remove deprecated column
+        tmpTS_rs$week <- NULL # remove deprecated column
+        tmpTS_rs <- tmpTS_rs %>% rename(meanViru := value)
+        mVnoLag_split[[i]]$meanViru <- tmpTS_rs$meanViru
+    } # end if
+} # end for
+
+# merge data again
+mVnoLag_merge <- base::do.call(base::rbind, mVnoLag_split)
+mVnoLag_merge_f <- mVnoLag_merge %>% dplyr::filter(t >= 0) # Start after initial outbreak
+
+mVnoLag_merge_f$Ninfected_mean <- NULL
+mVnoLag_merge_f$meanStrain_mean <- NULL
+
+# clear names
+
+mVnoLag_merge_f_m <- mutate(
+    mVnoLag_merge_f,
+    mutationRate = case_when(
+        mutationRate == 0.01 ~ "mutation rate 0.01",
+        mutationRate == 0.1 ~ "mutation rate 0.1",
+        mutationRate == 0.5 ~ "mutation rate 0.5"
+    ),
+    evolutionFactor = case_when(
+        evolutionFactor == 1 ~ "evolution step 1",
+        evolutionFactor == 3 ~ "evolution step 3",
+        evolutionFactor == 5 ~ "evolution step 5"
+    ),
+    Filename = case_when(
+        Filename == "patch_m_1" ~ "Medium clusters",
+        Filename == "rand_1" ~ "Random landscape",
+        Filename == "patch_l_2" ~ "Large clusters",
+        Filename == "patch_s_1" ~ "Small clusters",
+        Filename == "hom_1" ~ "Homogeneous landscape"
+    ),
+    temporal_lag = case_when(
+        temporal_lag == 0 ~ "No mismatch",
+        temporal_lag == 100 ~ "Full mismatch"
+    ),
+    uniform_breeding = case_when(
+        uniform_breeding == "true" ~ "Uniform breeding",
+        uniform_breeding == "false" ~ "Seasonal breeding"
+    )
+)
+
+# order by landscape heterogeneity
+mVnoLag_merge_f_m$Filename <- fct_relevel(
+    mVnoLag_merge_f_m$Filename,
+    "Random landscape",
+    "Small clusters",
+    "Medium clusters",
+    "Large clusters",
+    "Homogeneous landscape"
+)
+
+# plot objects
+meanviruP_nolag <- (
+    ggplot() +
+        geom_line(
+            data = (mVnoLag_merge_f_m),
+            aes((t / 52), meanViru, colour = temporal_lag),
+            size = 1
+        ) +
+        facet_grid(uniform_breeding ~ Filename) +
+        theme_bw() +
+        labs(x = "Time (years)", y = "Mean virulence") +
+        theme(
+            axis.text = element_text(size = 18),
+            axis.title = element_text(size = 20),
+            legend.text = element_text(size = 18),
+            legend.title = element_text(size = 20),
+            strip.text.x = element_text(size = 18),
+            strip.text.y = element_text(size = 18)
+        ) +
+        scale_color_scico_d(name = "Temporal\nmismatch", palette = "roma") +
+        scale_linetype_discrete(name = "Temporal\nmismatch") +
+        scale_y_continuous(
+            limits = c(-6, 5),
+            breaks = c(-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5)
+        ) +
+        ggtitle("")
+)
+
+meanviruP_lag <- (
+    ggplot() +
+        geom_line(
+            data = (
+                mVnoLag_merge_f_m %>% filter(mVnoLag_merge_f_m$temporal_lag == "Full mismatch")
+            ),
+            aes((t / 52), meanViru, colour = Filename),
+            size = 1
+        ) +
+        facet_grid(~Filename) +
+        theme_bw() +
+        labs(x = "Time (years)", y = "Mean virulence") +
+        theme(
+            axis.text = element_text(size = 18),
+            axis.title = element_text(size = 20),
+            legend.text = element_text(size = 18),
+            legend.title = element_text(size = 20),
+            strip.text.x = element_text(size = 18),
+            strip.text.y = element_text(size = 18)
+        ) +
+        scale_y_continuous(
+            limits = c(-6, 5),
+            breaks = c(-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5)
+        ) +
+        scale_color_scico_d(name = "Landscape", palette = "roma") +
+        scale_linetype_discrete(name = "Temporal\nmismatch")
+) +
+    ggtitle("Full temporal mismatch")
+
+# combine and save
+meanVirCombi <- ggpubr::ggarrange(meanviruP_nolag, meanviruP_lag, ncol = 1)
+meanVirCombi2 <- meanviruP_nolag
+
+meanviruP_FileName <- paste(todaysFolder, "/meanviruP_new", currentDate_v, ".png", sep = "")
+
+ggsave(
+    meanviruP_FileName,
+    plot = meanviruP_nolag,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 20,
+    height = 8
+)
+```
+
+```{r strain presence and difference old}
+# data subset
+bar_dat <-
+    ls_raw %>% filter(
+        ls_raw$dynmode == "true"
+    )
+
+bar_dat$seed.setup <- NULL
+bar_dat$seed <- NULL
+bar_dat$FertRedInf <- NULL
+bar_dat$Landscape <- NULL
+bar_dat$BetaWithin <- NULL
+bar_dat$Npop <- NULL
+bar_dat$meanStrain <- NULL
+bar_dat$Nsusceptible <- NULL
+bar_dat$Ninfected <- NULL
+bar_dat$Nimmune <- NULL
+bar_dat$WeekLast <- NULL
+
+# grouping and summary
+l10bar <- bar_dat
+
+l101bar <-
+    l10bar %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding,
+        mutationRate,
+        evolutionFactor,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c(
+            "strain_1",
+            "strain_2",
+            "strain_3",
+            "strain_4",
+            "strain_5",
+            "strain_6",
+            "strain_7",
+            "strain_8",
+            "strain_9",
+            "strain_10",
+            "strain_11",
+            "strain_12"
+        ),
+        .funs = c(mean = "mean")
+    ) %>%
+    rename(
+        alpha1_variant   = strain_1_mean,
+        alpha2_variant   = strain_2_mean,
+        beta1_variant    = strain_3_mean,
+        beta2_variant    = strain_4_mean,
+        gamma1_variant   = strain_5_mean,
+        gamma2_variant   = strain_6_mean,
+        delta1_variant   = strain_7_mean,
+        delta2_variant   = strain_8_mean,
+        epsilon1_variant = strain_9_mean,
+        epsilon2_variant = strain_10_mean,
+        zeta1_variant    = strain_11_mean,
+        zeta2_variant    = strain_12_mean
+    )
+
+# loop preparations
+l101b <- l101bar %>% filter(evolutionFactor == 1, mutationRate == 0.01)
+
+tt1 <- c(0, 100)
+
+tempList <- list()
+
+# decomposition loop
+for (i in 1:length(tt1)) {
+    l101a <- l101b %>% filter(temporal_lag == tt1[i])
+
+    l101a2 <- mutate(
+        l101a,
+        mutationRate = case_when(
+            mutationRate == 0.01 ~ "mutation rate 0.01",
+            mutationRate == 0.1 ~ "mutation rate 0.1",
+            mutationRate == 0.5 ~ "mutation rate 0.5"
+        ),
+        evolutionFactor = case_when(
+            evolutionFactor == 1 ~ "evolution step 1",
+            evolutionFactor == 3 ~ "evolution step 3",
+            evolutionFactor == 5 ~ "evolution step 5"
+        ),
+        Filename = case_when(
+            Filename == "patch_m_1" ~ "Medium clusters",
+            Filename == "rand_1" ~ "Random landscape",
+            Filename == "patch_l_2" ~ "Large clusters",
+            Filename == "patch_s_1" ~ "Small clusters",
+            Filename == "hom_1" ~ "Homogeneous landscape"
+        ),
+        uniform_breeding = case_when(
+            uniform_breeding == "true" ~ "Uniform breeding",
+            uniform_breeding == "false" ~ "Seasonal breeding"
+        )
+    ) %>% mutate(Filename = as.factor(Filename))
+
+    l101a2$Filename <- fct_relevel(
+        l101a2$Filename,
+        "Random landscape",
+        "Small clusters",
+        "Medium clusters",
+        "Large clusters",
+        "Homogeneous landscape"
+    )
+
+    l101a2_tmp <- l101a2
+
+    # standardized values instead of absolutes
+
+    l101a2$sumOfVariants <- l101a2$alpha1_variant + l101a2$alpha2_variant + l101a2$beta1_variant + l101a2$beta2_variant + l101a2$gamma1_variant + l101a2$gamma2_variant + l101a2$delta1_variant + l101a2$delta2_variant + l101a2$epsilon1_variant + l101a2$epsilon2_variant + l101a2$zeta1_variant + l101a2$zeta2_variant
+
+    l101a2$alpha1_variant <- ((l101a2$alpha1_variant * 100) / l101a2$sumOfVariants)
+    l101a2$alpha2_variant <- ((l101a2$alpha2_variant * 100) / l101a2$sumOfVariants)
+    l101a2$beta1_variant <- ((l101a2$beta1_variant * 100) / l101a2$sumOfVariants)
+    l101a2$beta2_variant <- ((l101a2$beta2_variant * 100) / l101a2$sumOfVariants)
+    l101a2$gamma1_variant <- ((l101a2$gamma1_variant * 100) / l101a2$sumOfVariants)
+    l101a2$gamma2_variant <- ((l101a2$gamma2_variant * 100) / l101a2$sumOfVariants)
+    l101a2$delta1_variant <- ((l101a2$delta1_variant * 100) / l101a2$sumOfVariants)
+    l101a2$delta2_variant <- ((l101a2$delta2_variant * 100) / l101a2$sumOfVariants)
+    l101a2$epsilon1_variant <- ((l101a2$epsilon1_variant * 100) / l101a2$sumOfVariants)
+    l101a2$epsilon2_variant <- ((l101a2$epsilon2_variant * 100) / l101a2$sumOfVariants)
+    l101a2$zeta1_variant <- ((l101a2$zeta1_variant * 100) / l101a2$sumOfVariants)
+    l101a2$zeta2_variant <- ((l101a2$zeta2_variant * 100) / l101a2$sumOfVariants)
+
+    l101a2$alpha1_variant[is.nan(l101a2$alpha1_variant)] <- 0
+    l101a2$alpha2_variant[is.nan(l101a2$alpha2_variant)] <- 0
+    l101a2$beta1_variant[is.nan(l101a2$beta1_variant)] <- 0
+    l101a2$beta2_variant[is.nan(l101a2$beta2_variant)] <- 0
+    l101a2$gamma1_variant[is.nan(l101a2$gamma1_variant)] <- 0
+    l101a2$gamma2_variant[is.nan(l101a2$gamma2_variant)] <- 0
+    l101a2$delta1_variant[is.nan(l101a2$delta1_variant)] <- 0
+    l101a2$delta2_variant[is.nan(l101a2$delta2_variant)] <- 0
+    l101a2$epsilon1_variant[is.nan(l101a2$epsilon1_variant)] <- 0
+    l101a2$epsilon2_variant[is.nan(l101a2$epsilon2_variant)] <- 0
+    l101a2$zeta1_variant[is.nan(l101a2$zeta1_variant)] <- 0
+    l101a2$zeta2_variant[is.nan(l101a2$zeta2_variant)] <- 0
+
+
+    l101a2$sumOfVariants <- NULL
+
+    tempList[[i]] <- l101a2
+
+    l1011_e <-
+        l101a2 %>% melt(
+            c(
+                "Filename",
+                "t",
+                "trade_off_type",
+                "uniform_breeding",
+                "dynmode",
+                "temporal_lag",
+                "mutationRate",
+                "evolutionFactor"
+            )
+        )
+
+
+    l1011na_e <- l1011_e
+
+    ## creating an arrow for the plot
+    library(png)
+    library(grid)
+    mypng <- readPNG("arrow.png")
+    g_png <- rasterGrob(mypng, interpolate = TRUE)
+
+
+    l1011na_e$value <- na_if(l1011na_e$value, 0)
+
+    if (i == 1) {
+        strainOcc_exp <-
+            ggplot(data = l1011na_e %>% filter(uniform_breeding == "Seasonal breeding")) +
+            geom_tile(aes((t / 52), variable, fill = (value))) +
+            scale_x_continuous(limits = c(0, 100), expand = c(0, 0)) +
+            facet_grid(~Filename) +
+            theme_bw() +
+            scale_fill_scico(
+                "% infected",
+                palette = "roma",
+                na.value = "gray",
+                direction = -1,
+                limits = c(0, 100),
+                breaks = c(1, 25, 50, 75, 100)
+            ) +
+            labs(x = "Time (years)", y = "Strain virulence\n\n") +
+            theme(
+                axis.text = element_text(size = 18),
+                axis.title = element_text(size = 20),
+                legend.text = element_text(size = 18),
+                legend.title = element_text(size = 20),
+                strip.text.x = element_text(size = 18),
+                strip.text.y = element_text(size = 18),
+                panel.spacing.x = unit(1.2, "lines")
+            ) +
+            ggtitle("Synchronous") +
+            coord_cartesian(clip = "off") +
+            annotation_custom(g_png, xmin = -1060)
+    } else {
+        strainOcc_exp2 <-
+            ggplot(data = l1011na_e %>% filter(uniform_breeding == "Seasonal breeding")) +
+            geom_tile(aes((t / 52), variable, fill = (value))) +
+            scale_x_continuous(limits = c(0, 100), expand = c(0, 0)) +
+            facet_grid(~Filename) +
+            theme_bw() +
+            scale_fill_scico(
+                "% infected",
+                palette = "roma",
+                na.value = "gray",
+                direction = -1,
+                limits = c(0, 100),
+                breaks = c(1, 25, 50, 75, 100)
+            ) +
+            labs(x = "Time (years)", y = "Strain virulence\n\n") +
+            theme(
+                axis.text = element_text(size = 18),
+                axis.title = element_text(size = 20),
+                legend.text = element_text(size = 18),
+                legend.title = element_text(size = 20),
+                strip.text.x = element_text(size = 18),
+                strip.text.y = element_text(size = 18),
+                panel.spacing.x = unit(1.2, "lines")
+            ) +
+            ggtitle("Asynchronous") +
+            coord_cartesian(clip = "off") +
+            annotation_custom(g_png, xmin = -1060)
+    }
+}
+
+tmp1 <- tempList[[1]] %>%
+    filter(Filename != "Homogeneous landscape") %>%
+    droplevels()
+tmp2 <- tempList[[2]] %>%
+    filter(Filename != "Homogeneous landscape") %>%
+    droplevels()
+
+tmp2 %>%
+    group_by(Filename, temporal_lag) %>%
+    summarise(tmo = length(delta1_variant))
+
+tmp3 <- tmp1 %>%
+    ungroup() %>%
+    dplyr::select(where(is.numeric))
+
+tmp4 <- tmp2 %>%
+    ungroup() %>%
+    dplyr::select(where(is.numeric))
+
+tmp5 <- tmp3 - tmp4
+
+
+tmp5$Filename <- tmp1$Filename
+tmp5$t <- tmp1$t
+tmp5$breeding <- tmp1$uniform_breeding
+tmp5$temporal_lag <- NULL
+
+tmp6 <-
+    tmp5 %>% melt(c(
+        "Filename",
+        "t", "breeding"
+    ))
+
+tmp6$value <- na_if(tmp6$value, 0)
+
+(
+    tplo <- ggplot(data = tmp6 %>% filter(breeding == "Seasonal breeding")) +
+        geom_tile(aes((t / 52), variable, fill = (value))) +
+        scale_x_continuous(limits = c(0, 100), expand = c(0, 0)) +
+        facet_grid(~Filename) +
+        theme_bw() +
+        scale_fill_gradientn(
+            colours = c(
+                "#8B0000",
+                "#FF3030",
+                "#FF6A6A",
+                "#FFB6C1",
+                "gray",
+                "#C6E2FF",
+                "#87CEFA",
+                "#4876FF",
+                "#36648B"
+            ),
+            values = c(0, 49, 49.5, 50, 50.5, 51, 100) / 100,
+            limits = c(-100, 100),
+            breaks = c(-100, -50, -5, -1, 0, 1, 5, 50, 100),
+            na.value = "white"
+        ) +
+        guides(fill = guide_legend(title = "Difference in\n% infected")) +
+        labs(x = "Time (years)", y = "Strain virulence\n\n") +
+        theme(
+            axis.text = element_text(size = 18),
+            axis.title = element_text(size = 20),
+            legend.text = element_text(size = 18),
+            legend.title = element_text(size = 20),
+            strip.text.x = element_text(size = 18),
+            strip.text.y = element_text(size = 18),
+            panel.spacing.x = unit(1.2, "lines")
+        ) +
+        ggtitle("Landscape wide differences in relative strain occurecne") +
+        coord_cartesian(clip = "off") +
+        annotation_custom(g_png, xmin = -820)
+)
+
+# name
+strainOccDiff_FileName_ex <- paste(todaysFolder, "/strainOcc_diff", currentDate_v, ".png", sep = "")
+
+# create file
+ggsave(
+    strainOccDiff_FileName_ex,
+    plot = tplo,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 23,
+    height = 12
+)
+
+combi_new <-
+    ggpubr::ggarrange(
+        strainOcc_exp,
+        strainOcc_exp2,
+        common.legend = TRUE,
+        legend = "right",
+        ncol = 1
+    )
+
+strainOcc_FileName_ex <- paste(todaysFolder, "/strainOcc_both", currentDate_v, ".png", sep = "")
+
+# create file
+
+ggsave(
+    strainOcc_FileName_ex,
+    plot = combi_new,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 23,
+    height = 12
+)
+```
+
+```{r strain presence and difference}
+# data subset
+bar_dat <-
+    ls_raw %>% filter(
+        ls_raw$dynmode == "true"
+    )
+
+bar_dat$seed.setup <- NULL
+bar_dat$seed <- NULL
+bar_dat$FertRedInf <- NULL
+bar_dat$Landscape <- NULL
+bar_dat$BetaWithin <- NULL
+bar_dat$Npop <- NULL
+bar_dat$meanStrain <- NULL
+bar_dat$Nsusceptible <- NULL
+bar_dat$Ninfected <- NULL
+bar_dat$Nimmune <- NULL
+bar_dat$WeekLast <- NULL
+
+# grouping and summary
+l10bar <- bar_dat
+
+l101bar <-
+    l10bar %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding,
+        mutationRate,
+        evolutionFactor,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c(
+            "strain_1",
+            "strain_2",
+            "strain_3",
+            "strain_4",
+            "strain_5",
+            "strain_6",
+            "strain_7",
+            "strain_8",
+            "strain_9",
+            "strain_10",
+            "strain_11",
+            "strain_12"
+        ),
+        .funs = c(mean = "mean")
+    ) %>%
+    rename(
+        alpha1_variant = strain_1_mean,
+        alpha2_variant = strain_2_mean,
+        beta1_variant = strain_3_mean,
+        beta2_variant = strain_4_mean,
+        gamma1_variant = strain_5_mean,
+        gamma2_variant = strain_6_mean,
+        delta1_variant = strain_7_mean,
+        delta2_variant = strain_8_mean,
+        epsilon1_variant = strain_9_mean,
+        epsilon2_variant = strain_10_mean,
+        zeta1_variant = strain_11_mean,
+        zeta2_variant = strain_12_mean
+    )
+
+# loop preparations
+l101b <- l101bar %>%
+    filter(evolutionFactor == 1, mutationRate == 0.01) %>%
+    mutate(
+        s1 = alpha1_variant + alpha2_variant,
+        s2 = beta1_variant + beta2_variant,
+        s3 = gamma1_variant + gamma2_variant,
+        s4 = delta1_variant + delta2_variant,
+        s5 = epsilon1_variant + epsilon2_variant,
+        s6 = zeta1_variant + zeta2_variant
+    )
+
+
+tt1 <- c(0, 100)
+
+tempList <- list()
+
+# decomposition loop
+for (i in 1:length(tt1)) {
+    l101a <- l101b %>% filter(temporal_lag == tt1[i])
+
+    l101a2 <- mutate(
+        l101a,
+        mutationRate = case_when(
+            mutationRate == 0.01 ~ "mutation rate 0.01",
+            mutationRate == 0.1 ~ "mutation rate 0.1",
+            mutationRate == 0.5 ~ "mutation rate 0.5"
+        ),
+        evolutionFactor = case_when(
+            evolutionFactor == 1 ~ "evolution step 1",
+            evolutionFactor == 3 ~ "evolution step 3",
+            evolutionFactor == 5 ~ "evolution step 5"
+        ),
+        Filename = case_when(
+            Filename == "patch_m_1" ~ "Medium clusters",
+            Filename == "rand_1" ~ "Random landscape",
+            Filename == "patch_l_2" ~ "Large clusters",
+            Filename == "patch_s_1" ~ "Small clusters",
+            Filename == "hom_1" ~ "Homogeneous landscape"
+        ),
+        uniform_breeding = case_when(
+            uniform_breeding == "true" ~ "Uniform breeding",
+            uniform_breeding == "false" ~ "Seasonal breeding"
+        )
+    ) %>% mutate(Filename = as.factor(Filename))
+
+    l101a2$Filename <- fct_relevel(
+        l101a2$Filename,
+        "Random landscape",
+        "Small clusters",
+        "Medium clusters",
+        "Large clusters",
+        "Homogeneous landscape"
+    )
+
+    l101a2_tmp <- l101a2
+
+    # standardized values instead of absolutes
+
+    l101a2$sumOfVariants <- l101a2$s1 + l101a2$s2 + l101a2$s3 + l101a2$s4 + l101a2$s5 + l101a2$s6
+
+    # l101a2$sumOfVariants <- l101a2$alpha1_variant + l101a2$alpha2_variant +l101a2$beta1_variant +l101a2$beta2_variant +l101a2$gamma1_variant +l101a2$gamma2_variant #+l101a2$delta1_variant +l101a2$delta2_variant +l101a2$epsilon1_variant +l101a2$epsilon2_variant +l101a2$zeta1_variant +l101a2$zeta2_variant
+
+    l101a2$s1 <- ((l101a2$s1 * 100) / l101a2$sumOfVariants)
+    l101a2$s2 <- ((l101a2$s2 * 100) / l101a2$sumOfVariants)
+    l101a2$s3 <- ((l101a2$s3 * 100) / l101a2$sumOfVariants)
+    l101a2$s4 <- ((l101a2$s4 * 100) / l101a2$sumOfVariants)
+    l101a2$s5 <- ((l101a2$s5 * 100) / l101a2$sumOfVariants)
+    l101a2$s6 <- ((l101a2$s6 * 100) / l101a2$sumOfVariants)
+
+    l101a2$s1[is.nan(l101a2$s1)] <- 0
+    l101a2$s2[is.nan(l101a2$s2)] <- 0
+    l101a2$s3[is.nan(l101a2$s3)] <- 0
+    l101a2$s4[is.nan(l101a2$s4)] <- 0
+    l101a2$s5[is.nan(l101a2$s5)] <- 0
+    l101a2$s6[is.nan(l101a2$s6)] <- 0
+
+
+
+    l101a2$sumOfVariants <- NULL
+
+    tempList[[i]] <- l101a2
+
+    l101a2 <-
+        l101a2 %>% select(
+            Filename,
+            t,
+            temporal_lag,
+            trade_off_type,
+            uniform_breeding,
+            mutationRate,
+            evolutionFactor,
+            dynmode,
+            s1,
+            s2,
+            s3,
+            s4,
+            s5,
+            s6
+        )
+
+    l1011_e <-
+        l101a2 %>% melt(
+            c(
+                "Filename",
+                "t",
+                "trade_off_type",
+                "uniform_breeding",
+                "dynmode",
+                "temporal_lag",
+                "mutationRate",
+                "evolutionFactor"
+            )
+        )
+
+
+    l1011na_e <- l1011_e
+
+    ## creating an arrow for the plot
+    library(png)
+    library(grid)
+    mypng <- readPNG("arrow.png")
+    g_png <- rasterGrob(mypng, interpolate = TRUE)
+
+
+    l1011na_e$value <- na_if(l1011na_e$value, 0)
+
+
+    l1011na_e <- mutate(
+        l1011na_e,
+        var2 = case_when(
+            variable == "s1" ~ "1",
+            variable == "s2" ~ "2",
+            variable == "s3" ~ "3",
+            variable == "s4" ~ "4",
+            variable == "s5" ~ "5",
+            variable == "s6" ~ "6"
+        )
+    )
+
+
+    l1011na_e$var2 <- fct_relevel(
+        l1011na_e$var2,
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+    )
+
+    if (i == 1) {
+        strainOcc_exp <-
+            ggplot(data = l1011na_e %>% filter(uniform_breeding == "Seasonal breeding", Filename != "Homogeneous landscape")) + # ,Filename !='Homogeneous landscape',Filename !='Medium clusters',Filename !='Small clusters'  )) +
+            geom_tile(aes((t / 52), var2, fill = (value))) +
+            scale_x_continuous(limits = c(0, 100), expand = c(0, 0)) +
+            facet_grid(~Filename) +
+            theme_bw() +
+            scale_fill_scico(
+                "% infected",
+                palette = "roma",
+                na.value = "gray",
+                direction = -1,
+                limits = c(0, 100),
+                breaks = c(1, 25, 50, 75, 100)
+            ) +
+            labs(x = "Time (years)", y = "Strain virulence\n\n") +
+            theme(
+                axis.text.y = element_text(size = 26),
+                axis.text.x = element_text(size = 18),
+                axis.title = element_text(size = 28),
+                legend.text = element_text(size = 26),
+                legend.title = element_text(size = 28),
+                strip.text.x = element_text(size = 26),
+                strip.text.y = element_text(size = 26),
+                panel.spacing.x = unit(3, "lines"),
+                # plot.title = element_blank(),
+                legend.key.size = unit(2, "cm")
+            ) +
+            ggtitle("Synchronous") +
+            coord_cartesian(clip = "off") #+
+        # annotation_custom(g_png, xmin = -980)
+    } else {
+        strainOcc_exp2 <-
+            ggplot(data = l1011na_e %>% filter(uniform_breeding == "Seasonal breeding", Filename != "Homogeneous landscape")) + # ,Filename !='Homogeneous landscape',Filename !='Medium clusters',Filename !='Small clusters'  )) +
+            geom_tile(aes((t / 52), var2, fill = (value))) +
+            scale_x_continuous(limits = c(0, 100), expand = c(0, 0)) +
+            facet_grid(~Filename) +
+            theme_bw() +
+            scale_fill_scico(
+                "% infected",
+                palette = "roma",
+                na.value = "gray",
+                direction = -1,
+                limits = c(0, 100),
+                breaks = c(1, 25, 50, 75, 100)
+            ) +
+            labs(x = "Time (years)", y = "Strain virulence\n\n") +
+            theme(
+                axis.text.y = element_text(size = 26),
+                axis.text.x = element_text(size = 18),
+                axis.title = element_text(size = 28),
+                legend.text = element_text(size = 26),
+                legend.title = element_text(size = 28),
+                strip.text.x = element_text(size = 26),
+                strip.text.y = element_text(size = 26),
+                panel.spacing.x = unit(3, "lines"),
+                # plot.title = element_blank(),
+                legend.key.size = unit(2, "cm")
+            ) +
+            ggtitle("Asynchronous") +
+            coord_cartesian(clip = "off") #+
+        # annotation_custom(g_png, xmin = -980)
+    }
+}
+
+tmp1 <- tempList[[1]] %>%
+    filter(Filename != "Homogeneous landscape") %>%
+    droplevels()
+tmp2 <- tempList[[2]] %>%
+    filter(Filename != "Homogeneous landscape") %>%
+    droplevels()
+
+tmp2 %>%
+    group_by(Filename, temporal_lag) %>%
+    summarise(tmo = length(delta1_variant))
+
+tmp3 <- tmp1 %>%
+    ungroup() %>%
+    dplyr::select(where(is.numeric))
+
+tmp4 <- tmp2 %>%
+    ungroup() %>%
+    dplyr::select(where(is.numeric))
+
+tmp5 <- tmp3 - tmp4
+
+
+tmp5$Filename <- tmp1$Filename
+tmp5$t <- tmp1$t
+tmp5$breeding <- tmp1$uniform_breeding
+tmp5$temporal_lag <- NULL
+
+tmp6 <-
+    tmp5 %>% melt(c(
+        "Filename",
+        "t", "breeding"
+    ))
+
+tmp6 <- mutate(
+    tmp6,
+    var2 = case_when(
+        variable == "s1" ~ "1",
+        variable == "s2" ~ "2",
+        variable == "s3" ~ "3",
+        variable == "s4" ~ "4",
+        variable == "s5" ~ "5",
+        variable == "s6" ~ "6"
+    )
+)
+
+tmp6$var2 <- fct_relevel(
+    tmp6$var2,
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+)
+
+tmp6$value <- na_if(tmp6$value, 0)
+
+(
+    tplo <- ggplot(data = tmp6 %>% filter(breeding == "Seasonal breeding")) +
+        geom_tile(aes((t / 52), var2, fill = (value / 100))) +
+        scale_x_continuous(limits = c(0, 100), expand = c(0, 0)) +
+        facet_grid(~Filename) +
+        theme_bw() +
+        scale_fill_viridis(limits = c(-1, 1), breaks = c(-1, -0.5, -0.05, 0, 0.05, 0.5, 1)) +
+        guides(fill = guide_legend(title = "Difference in\n% infected")) +
+        labs(x = "Time (years)", y = "Strain virulence\n\n") +
+        theme(
+            axis.text = element_text(size = 18),
+            axis.title = element_text(size = 20),
+            legend.text = element_text(size = 18),
+            legend.title = element_text(size = 20),
+            strip.text.x = element_text(size = 18),
+            strip.text.y = element_text(size = 18),
+            panel.spacing.x = unit(1.2, "lines"),
+            plot.title = element_text(size = 20)
+        ) +
+        ggtitle("Landscape wide differences in relative strain occurecne") +
+        coord_cartesian(clip = "off") +
+        annotation_custom(g_png, xmin = -750)
+)
+
+# name
+strainOccDiff_FileName_ex <- paste(todaysFolder, "/strainOcc_diff", currentDate_v, ".png", sep = "")
+
+# create file
+
+ggsave(
+    strainOccDiff_FileName_ex,
+    plot = tplo,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 23,
+    height = 8
+)
+
+combi_new <-
+    ggpubr::ggarrange(
+        strainOcc_exp,
+        strainOcc_exp2,
+        common.legend = TRUE,
+        legend = "right",
+        ncol = 1
+    )
+
+strainOcc_FileName_ex <- paste(todaysFolder, "/strainOcc_both", currentDate_v, ".png", sep = "")
+strainOcc_FileName_ex1 <- paste(todaysFolder, "/strainOcc_syn", currentDate_v, ".png", sep = "")
+strainOcc_FileName_ex2 <- paste(todaysFolder, "/strainOcc_asyn", currentDate_v, ".png", sep = "")
+# create file
+
+ggsave(
+    strainOcc_FileName_ex,
+    plot = combi_new,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 23,
+    height = 12
+)
+
+
+ggsave(
+    strainOcc_FileName_ex1,
+    plot = strainOcc_exp,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 20,
+    height = 10
+)
+
+ggsave(
+    strainOcc_FileName_ex2,
+    plot = strainOcc_exp2,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 14,
+    height = 10
+)
+```
+
+```{r new experimental merged plot}
+# splitting facets
+asyncP <- strainOcc_exp2
+
+syncP <- strainOcc_exp
+
+test <- syncP
+
+test$data <- test$data %>% filter(Filename == "Large clusters")
+LCs <- test + ggtitle("") + theme(legend.position = "none") + labs(x = "", y = "Strain virulence")
+test <- syncP
+
+test$data <- test$data %>% filter(Filename == "Small clusters")
+SCs <- test + ggtitle("") + theme(legend.position = "none") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+test <- syncP
+
+test$data <- test$data %>% filter(Filename == "Medium clusters")
+MCs <- test + ggtitle("") + theme(legend.position = "none") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+test <- syncP
+
+test$data <- test$data %>% filter(Filename == "Random landscape")
+RLs <- test + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+
+
+test <- asyncP
+
+test$data <- test$data %>% filter(Filename == "Large clusters")
+LCas <- test + ggtitle("") + theme(legend.position = "none") + labs(x = "", y = "Strain virulence")
+test <- asyncP
+
+test$data <- test$data %>% filter(Filename == "Small clusters")
+SCas <- test + ggtitle("") + theme(legend.position = "none") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+test <- asyncP
+
+test$data <- test$data %>% filter(Filename == "Medium clusters")
+MCas <- test + ggtitle("") + theme(legend.position = "none") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+test <- asyncP
+
+test$data <- test$data %>% filter(Filename == "Random landscape")
+RLas <- test + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+
+
+
+# adding the line plots
+LCslp <- strainTrend_noLag_patch_l_2 + theme(legend.position = "none") + ggtitle("") + labs(y = "N infected", x = "")
+MCslp <- strainTrend_noLag_patch_m_1 + theme(legend.position = "none") + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+SCslp <- strainTrend_noLag_patch_s_1 + theme(legend.position = "none") + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+RLslp <- strainTrend_noLag_rand_1 + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+
+
+LCaslp <- strainTrend_FullLag_patch_l_2 + theme(legend.position = "none") + ggtitle("") + labs(y = "N infected", x = "")
+MCaslp <- strainTrend_FullLag_patch_m_1 + theme(legend.position = "none") + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+SCaslp <- strainTrend_FullLag_patch_s_1 + theme(legend.position = "none") + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+RLaslp <- strainTrend_FullLag_rand_1 + ggtitle("") + labs(x = "", y = "") + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), legend.title = element_blank())
+
+library(patchwork)
+
+lcpas <- LCas / LCaslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+mcpas <- MCas / MCaslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+scpas <- SCas / SCaslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+rlpas <- RLas / RLaslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+
+lcpas | mcpas | scpas | rlpas 
+
+
+finP <- lcpas | mcpas | scpas | rlpas
+
+
+
+
+finNam <- paste(todaysFolder, "/publiCombPlotAsync", currentDate_v, ".tiff", sep = "")
+
+ggsave(
+    finNam,
+    plot = finP,
+    dpi = 800,
+    limitsize = TRUE,
+    width = 24,
+    height = 10
+)
+
+
+
+lcps <- LCs / LCslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+mcps <- MCs / MCslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+scps <- SCs / SCslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+rlps <- RLs / RLslp + plot_layout(heights = c(3, 1), widths = c(4, 4))
+
+lcps | mcps | scps | rlps 
+
+
+finP2 <- lcps | mcps | scps | rlps 
+
+
+
+
+
+finNam2 <- paste(todaysFolder, "/publiCombPlotSync", currentDate_v, ".tiff", sep = "")
+
+ggsave(
+    finNam2,
+    plot = finP2,
+    dpi = 800,
+    limitsize = TRUE,
+    width = 24,
+    height = 10
+)
+
+
+
+finP3 <- finP | finP2 + plot_layout(nrow = 4, ncol = 4)
+
+
+finNam3 <- paste(todaysFolder, "/publiCombPlotComb2", currentDate_v, ".tiff", sep = "")
+
+ggsave(
+    finNam3,
+    plot = finP3,
+    dpi = 800,
+    limitsize = TRUE,
+    width = 24,
+    height = 10
+)
+
+```
+
+```{r coexistence probability}
+# data preparation
+
+tgb2 <- ls_raw %>%
+    group_by(
+        Filename,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding, mutationRate, evolutionFactor, runNumber,
+        dynmode
+    ) %>%
+    summarise_at(
+        .vars = c(
+            "Nsusceptible",
+            "Ninfected",
+            "Npop",
+            "Nimmune",
+            "meanStrain",
+            "strain_1",
+            "strain_2",
+            "strain_3",
+            "strain_4",
+            "strain_5",
+            "strain_6",
+            "strain_7",
+            "strain_8",
+            "strain_9",
+            "strain_10",
+            "strain_11",
+            "strain_12",
+            "WeekLast"
+        ),
+        .funs = c(mean = "mean", sd = "sd")
+    )
+
+
+tgb2_ex <- subset(tgb2, tgb2$WeekLast_mean < 2600)
+tgb2_ex$ext <- 0
+
+
+tgb2_nex <- subset(tgb2, tgb2$WeekLast_mean >= 2600)
+tgb2_nex$ext <- 1
+
+
+tgbM <- full_join(tgb2_ex, tgb2_nex)
+
+tgbM <- tgbM %>% filter(mutationRate == 0.01, evolutionFactor == 1)
+
+tgbMS <- tgbM %>% group_by(Filename, mutationRate, evolutionFactor, dynmode, uniform_breeding, temporal_lag)
+
+tgbMSS <- group_split(tgbMS)
+
+tgList <- as.list(1, 1)
+
+# summary for each parameter combination
+
+for (i in 1:length(tgbMSS)) {
+    tgList[[i]] <- tgbMSS[[i]] %>%
+        group_by(
+            Filename,
+            temporal_lag,
+            trade_off_type,
+            uniform_breeding,
+            mutationRate,
+            evolutionFactor,
+            dynmode
+        ) %>%
+        summarise_at(
+            .vars = c("WeekLast_mean"),
+            .funs = c(mean = "mean")
+        )
+}
+
+# recombination into one dataframe
+
+tg_merge <- base::do.call(base::rbind, tgList)
+
+tg_merge_dyn2 <- filter(tg_merge, dynmode == "true")
+
+
+tg_merge_dyn <- mutate(
+    tg_merge_dyn2,
+    mutationRate = case_when(
+        mutationRate == 0.01 ~ "mutation rate 0.01",
+        mutationRate == 0.1 ~ "mutation rate 0.1",
+        mutationRate == 0.5 ~ "mutation rate 0.5"
+    ),
+    evolutionFactor = case_when(
+        evolutionFactor == 1 ~ "evolution step 1",
+        evolutionFactor == 3 ~ "evolution step 3",
+        evolutionFactor == 5 ~ "evolution step 5"
+    ),
+    uniform_breeding = case_when(
+        uniform_breeding == "true" ~ "Uniform breeding",
+        uniform_breeding == "false" ~ "Seasonal breeding"
+    ),
+    Filename = case_when(
+        Filename == "patch_m_1" ~ "Medium clusters",
+        Filename == "rand_1" ~ "Random landscape",
+        Filename == "patch_l_2" ~ "Large clusters",
+        Filename == "patch_s_1" ~ "Small clusters",
+        Filename == "hom_1" ~ "Homogeneous landscape"
+    ),
+    temporal_lag = case_when(
+        temporal_lag == 0 ~ "Synchronous",
+        temporal_lag == 100 ~ "Asynchronous"
+    ),
+    mean = case_when(mean < 50 ~ 0, mean > 50 ~ mean)
+)
+
+tg_merge_dyn$Filename <- fct_relevel(
+    tg_merge_dyn$Filename,
+    "Random landscape",
+    "Small clusters",
+    "Medium clusters",
+    "Large clusters",
+    "Homogeneous landscape"
+)
+tg_merge_dyn$temporal_lag <- fct_relevel(
+    tg_merge_dyn$temporal_lag,
+    "Synchronous",
+    "Asynchronous"
+)
+tg_merge_dyn <- tg_merge_dyn %>% filter(Filename != "Homogeneous landscape")
+
+(tgbp <- ggplot
+(
+    data = (
+        tg_merge_dyn %>% filter(uniform_breeding == "Seasonal breeding")
+    ),
+    aes
+    (
+        as.factor(temporal_lag),
+        as.factor(Filename)
+    )
+) +
+    geom_tile
+    (
+        aes
+        (fill = (mean / 2600)),
+        colour = "black",
+        size = .5
+    ) +
+    coord_equal() +
+    theme_bw() +
+    scale_fill_scico
+    (
+        palette = "roma",
+        direction = 1,
+        name = "Coexistence \nprobability",
+        na.value = "gray",
+        breaks = c(0, 0.25, 0.50, 0.75, 1),
+        labels = c("0", "0.25", "0.50", "0.75", "1"),
+    ) +
+    ggtitle("") +
+    labs(x = expression("Host resources"), y = "Landscapes") +
+    scale_x_discrete(guide = guide_axis(n.dodge = 3)) +
+    theme
+    (
+        axis.text = element_text(size = 16),
+        axis.title = element_text(size = 18),
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 18),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        strip.text.x = element_text(size = 16),
+        strip.text.y = element_text(size = 16)
+    )
+)
+
+# filename
+coex_filename <-
+    paste(todaysFolder, "/coex_tiles", currentDate_v, ".png", sep = "")
+
+# create file
+
+ggsave(
+    coex_filename,
+    plot = tgbp,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 24,
+    height = 8
+)
+```
+
+```{r stats}
+stRaw1 <- ls_raw
+library(ggeffects)
+library(lme4)
+
+stRaw2 <-
+    stRaw1 %>%
+    filter(
+        uniform_breeding == "false",
+        mutationRate == 0.01,
+        evolutionFactor == 1,
+        dynmode == "true",
+        Filename != "hom_1"
+    ) %>%
+    mutate(
+        temporal_lag = case_when(temporal_lag == 0 ~ "synchronous", TRUE ~ "asynchronous"),
+        Filename = case_when(
+            Filename == "patch_m_1" ~ "Medium clusters",
+            Filename == "patch_l_2" ~ "Large clusters",
+            Filename == "patch_s_1" ~ "Small clusters",
+            Filename == "rand_1" ~ "Random landscape"
+        )
+    ) %>%
+    mutate(
+        temporal_lag = as.factor(temporal_lag),
+        Filename = as.factor(Filename)
+    )
+
+stRaw3 <- stRaw2
+
+stRaw3$LowVirStrains <- stRaw3$strain_1 + stRaw3$strain_2 + stRaw3$strain_3 + stRaw3$strain_4 + stRaw3$strain_5
+stRaw3$MedVirStrains <- stRaw3$strain_6 + stRaw3$strain_7
+stRaw3$HighVirStrains <- stRaw3$strain_8 + stRaw3$strain_9 + stRaw3$strain_10 + stRaw3$strain_11 + stRaw3$strain_12
+
+stRaw3$s1 <- stRaw3$strain_1 + stRaw3$strain_2
+stRaw3$s2 <- stRaw3$strain_3 + stRaw3$strain_4
+stRaw3$s3 <- stRaw3$strain_5 + stRaw3$strain_6
+stRaw3$s4 <- stRaw3$strain_7 + stRaw3$strain_7
+stRaw3$s5 <- stRaw3$strain_9 + stRaw3$strain_10
+stRaw3$s6 <- stRaw3$strain_11 + stRaw3$strain_12
+
+
+glmmInput <- stRaw3 %>%
+    filter(
+        uniform_breeding == "false",
+        mutationRate == 0.01,
+        evolutionFactor == 1,
+        dynmode == "true",
+        Filename != "hom_1"
+    ) 
+
+t1 <-
+    glmmInput %>%
+    group_by(Filename, temporal_lag, runNumber) %>%
+    summarise(
+        strain1 = sum(s1 != 0),
+        strain2 = sum(s2 != 0),
+        strain3 = sum(s3 != 0),
+        strain4 = sum(s4 != 0),
+        strain5 = sum(s5 != 0),
+        strain6 = sum(s6 != 0)
+    ) %>%
+    pivot_longer(cols = c(strain1, strain2, strain3, strain4, strain5, strain6), names_to = "strain")
+
+glmm1 <- lmer(formula = value ~ Filename * temporal_lag + strain + (1 | runNumber), data = t1)
+
+summary(glmm1)
+
+(effPl_glm31 <- plot(ggeffect(glmm1, c("strain", "temporal_lag", "Filename"))))
+
+(effPl_glm32 <- plot(ggeffect(glmm1, c("strain", "Filename", "temporal_lag"))))
+
+gef2 <- ggeffect(glmm1, c("strain", "temporal_lag", "Filename"))
+
+
+gef2$facet <- fct_relevel(gef2$facet, "Large clusters", "Medium clusters", "Small clusters", "Random landscape")
+
+stpl <- ggplot(gef2) +
+    geom_point(aes(x, predicted, color = group),
+        size = 2,
+        position = position_dodge(width = .2)
+    ) +
+    geom_errorbar(
+        aes(
+            ymin = predicted - std.error,
+            ymax = predicted + std.error,
+            x,
+            color = group
+        ),
+        width = 0.1,
+        position = position_dodge(width = .2)
+    ) +
+    theme_bw() +
+    facet_wrap(~facet) +
+    labs(x = "", y = "Strain prevalence in weeks") +
+    scale_color_scico_d(palette = "roma") +
+    theme(
+        axis.text.y = element_text(size = 26),
+        axis.text.x = element_text(size = 18),
+        axis.title = element_text(size = 28),
+        # axis.title = element_blank(),
+        legend.text = element_text(size = 26),
+        legend.title = element_blank(),
+        plot.title = element_text(size = 20),
+        strip.text.x = element_text(size = 20)
+    )
+
+
+statsPlotName <- paste(todaysFolder, "/statsPlot", currentDate_v, ".png", sep = "")
+
+ggsave(
+    statsPlotName,
+    plot = stpl,
+    dpi = 800,
+    limitsize = TRUE,
+    width = 18,
+    height = 10
+)
+
+
+```
+
+```{r wavelets and muller}
+library("MullerPlot")
+library("ggmuller")
+library("wsyn")
+
+
+m_dat <-
+    ls_raw %>% filter(
+        ls_raw$dynmode == "true"
+    )
+
+m_dat$seed.setup <- NULL
+m_dat$seed <- NULL
+m_dat$FertRedInf <- NULL
+m_dat$Landscape <- NULL
+m_dat$BetaWithin <- NULL
+m_dat$Npop <- NULL
+m_dat$meanStrain <- NULL
+m_dat$Nsusceptible <- NULL
+m_dat$Ninfected <- NULL
+m_dat$Nimmune <- NULL
+m_dat$WeekLast <- NULL
+
+l10m <- m_dat
+
+muellerSync <-
+    l10m %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding,
+        mutationRate,
+        evolutionFactor,
+        dynmode
+    ) %>%
+    filter(
+        runNumber == 3608, 
+        Filename == "patch_l_2",
+        temporal_lag == 0,
+        uniform_breeding == "false",
+        mutationRate == 0.01,
+        evolutionFactor == 1
+    )
+muellerSync$runNumber <- NULL
+muellerSync$Filename <- NULL
+muellerSync$trade_off_type <- NULL
+muellerSync$uniform_breeding <- NULL
+muellerSync$evolutionFactor <- NULL
+muellerSync$dynmode <- NULL
+muellerSync$temporal_lag <- NULL
+muellerSync$mutationRate <- NULL
+muellerSync$t <- muellerSync$t + 1
+muellerSync <- muellerSync %>% filter(t <= 5200)
+
+muellerSync$year <- rep(1:100, each = 52)
+
+muellerSync <- muellerSync %>%
+    group_by(year) %>%
+    summarise_all(list(mean))
+
+muellerSync$t <- NULL
+
+muellerSync <- muellerSync %>%
+    mutate(s1 = strain_1 + strain_2, s2 = strain_3 + strain_4, s3 = strain_5 + strain_6, s4 = strain_7 + strain_8, s5 = strain_9 + strain_10, s6 = strain_11 + strain_12) %>%
+    select(year, s1, s2, s3, s4, s5, s6)
+
+muellerSync_melt <-
+    muellerSync %>% melt(
+        c(
+            "year"
+        )
+    )
+
+muellerSync_melt <- mutate(
+    muellerSync_melt,
+    var2 = case_when(
+        variable == "s1" ~ "1",
+        variable == "s2" ~ "2",
+        variable == "s3" ~ "3",
+        variable == "s4" ~ "4",
+        variable == "s5" ~ "5",
+        variable == "s6" ~ "6"
+    )
+)
+
+muellerSync_melt$var2 <- fct_relevel(
+    muellerSync_melt$var2,
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+)
+
+muellerSync_melt$variable <- muellerSync_melt$var2
+muellerSync_melt$Identity <- muellerSync_melt$variable
+muellerSync_melt$Generation <- muellerSync_melt$year
+muellerSync_melt$Group_id <- muellerSync_melt$variable
+muellerSync_melt$Unique_id <- muellerSync_melt$variable
+muellerSync_melt$Frequency <- muellerSync_melt$value
+muellerSync_melt$Population <- muellerSync_melt$value
+muellerSync_melt$year <- NULL
+muellerSync_melt$variable <- NULL
+muellerSync_melt$value <- NULL
+
+
+mpSync <-
+    ggplot(muellerSync_melt) +
+    geom_area(aes(x = Generation, y = Population, fill = Identity)) +
+    scale_fill_scico_d(palette = "roma", direction = -1) +
+    theme_bw() +
+    scale_x_continuous(expand = c(0, 1)) +
+    scale_y_continuous(limits = c(0, 4500), expand = c(0, 0)) +
+    guides(fill = guide_legend(title = "Strain \nvirulence")) +
+    theme(
+        axis.text = element_text(size = 26),
+        axis.title = element_text(size = 28),
+        legend.text = element_text(size = 26),
+        legend.title = element_text(size = 28),
+        plot.title = element_text(size = 28)
+    ) +
+    ggtitle("Synchronous") +
+    labs(y = "N infected", x = "Time (years)")
+
+
+synMuller_n <- paste(todaysFolder, "/mullerSYN", currentDate_v, ".png", sep = "")
+
+ggsave(
+    synMuller_n,
+    plot = mpSync,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 12,
+    height = 8
+)
+
+### async
+
+muellerAsync <-
+    l10m %>%
+    group_by(
+        Filename,
+        t,
+        temporal_lag,
+        trade_off_type,
+        uniform_breeding,
+        mutationRate,
+        evolutionFactor,
+        dynmode
+    ) %>%
+    filter(
+        runNumber == 3687, 
+        Filename == "patch_l_2",
+        uniform_breeding == "false",
+        temporal_lag == 100,
+        uniform_breeding == "false",
+        mutationRate == 0.01,
+        evolutionFactor == 1
+    )
+
+muellerAsync$runNumber <- NULL
+muellerAsync$Filename <- NULL
+muellerAsync$trade_off_type <- NULL
+muellerAsync$uniform_breeding <- NULL
+muellerAsync$evolutionFactor <- NULL
+muellerAsync$dynmode <- NULL
+muellerAsync$temporal_lag <- NULL
+muellerAsync$mutationRate <- NULL
+muellerAsync$t <- muellerAsync$t + 1
+muellerAsync <- muellerAsync %>% filter(t <= 5200)
+
+muellerAsync$year <- rep(1:100, each = 52)
+
+muellerAsync <- muellerAsync %>%
+    group_by(year) %>%
+    summarise_all(list(mean))
+
+muellerAsync$t <- NULL
+
+muellerAsync <- muellerAsync %>%
+    mutate(s1 = strain_1 + strain_2, s2 = strain_3 + strain_4, s3 = strain_5 + strain_6, s4 = strain_7 + strain_8, s5 = strain_9 + strain_10, s6 = strain_11 + strain_12) %>%
+    select(year, s1, s2, s3, s4, s5, s6)
+
+muellerAsync_melt <-
+    muellerAsync %>% melt(
+        c(
+            "year"
+        )
+    )
+
+muellerAsync_melt <- mutate(
+    muellerAsync_melt,
+    var2 = case_when(
+        variable == "s1" ~ "1",
+        variable == "s2" ~ "2",
+        variable == "s3" ~ "3",
+        variable == "s4" ~ "4",
+        variable == "s5" ~ "5",
+        variable == "s6" ~ "6"
+    )
+)
+
+muellerAsync_melt$var2 <- fct_relevel(
+    muellerAsync_melt$var2,
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+)
+
+muellerAsync_melt$variable <- muellerAsync_melt$var2
+muellerAsync_melt$Identity <- muellerAsync_melt$variable
+muellerAsync_melt$Generation <- muellerAsync_melt$year
+muellerAsync_melt$Group_id <- muellerAsync_melt$variable
+muellerAsync_melt$Unique_id <- muellerAsync_melt$variable
+muellerAsync_melt$Frequency <- muellerAsync_melt$value
+muellerAsync_melt$Population <- muellerAsync_melt$value
+muellerAsync_melt$year <- NULL
+muellerAsync_melt$variable <- NULL
+muellerAsync_melt$value <- NULL
+
+
+mpAsync <-
+    ggplot(muellerAsync_melt) +
+    geom_area(aes(x = Generation, y = Population, fill = Identity)) +
+    scale_fill_scico_d(palette = "roma", direction = -1) +
+    scale_x_continuous(expand = c(0, 1)) +
+    scale_y_continuous(limits = c(0, 2500), expand = c(0, 0)) +
+    ggtitle("Asynchronous") +
+    theme_bw() +
+    guides(fill = guide_legend(title = "Strain \nvirulence")) +
+    theme(
+        axis.text = element_text(size = 26),
+        axis.title = element_text(size = 28),
+        legend.text = element_text(size = 26),
+        legend.title = element_text(size = 28),
+        plot.title = element_text(size = 26)
+    ) +
+    labs(y = "N infected", x = "Time (years)")
+
+
+asynMuller_n <- paste(todaysFolder, "/mullerASYN", currentDate_v, ".png", sep = "")
+
+ggsave(
+    asynMuller_n,
+    plot = mpAsync,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 12,
+    height = 8
+)
+
+combiMuller <- ggarrange(mpSync, mpAsync, common.legend = TRUE, legend = "right")
+combiMuller_n <- paste(todaysFolder, "/mullerPlotCobi2", currentDate_v, ".png", sep = "")
+
+
+ggsave(
+    combiMuller_n,
+    plot = combiMuller,
+    dpi = 1200,
+    limitsize = TRUE,
+    width = 23,
+    height = 8
+)
+
+```
