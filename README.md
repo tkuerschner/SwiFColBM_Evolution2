@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/668270612.svg)](https://zenodo.org/doi/10.5281/zenodo.10666864)
+
 # SwiFColBM_Evo NetLogo implementation
 ## Description
 
